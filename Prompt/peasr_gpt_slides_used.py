@@ -2,6 +2,7 @@
 
 import csv
 from openai import OpenAI
+import base64
 
 CSV_PATH = ""
 
