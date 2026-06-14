@@ -49,3 +49,64 @@ else:
     print(f"⚠ Image directory not found: {IMAGE_DIR_PATH}")
       
 for i, row in enumerate(rows):
+    english_text = row[0].strip()
+    try:
+            prompt = (f"""
+            You are performing post-editing for an ASR transcript of an academic presentation.
+
+            Your task is ONLY to correct clear ASR recognition errors.
+
+            IMPORTANT RULES:
+
+            - Preserve the original wording and phrasing whenever possible.
+            - Do NOT paraphrase, rewrite, summarize, or improve fluency.
+            - Do NOT replace sentences with text from the paper.
+            - The paper text may differ from the spoken presentation.
+            - Prefer the ASR transcript whenever both versions are plausible.
+            - Only make minimal local edits for obvious ASR mistakes.
+            - Use the paper only to resolve:
+            - technical terms
+            - names
+            - entities
+            - abbreviations
+            - Do not introduce new content not present in the ASR transcript.
+            - If the transcript is already plausible, keep it unchanged.
+
+            Return ONLY the post-edited ASR transcript.
+
+            ASR transcript:
+            {english_text}
+            """
+            )
+        
+            final_content = []
+            
+             # 1. 画像を全部追加
+            for b64 in encoded_images_list:
+                final_content.append({
+                    "type": "input_image",
+                    "image_url": f"data:image/jpeg;base64,{b64}",
+                })
+            
+            # 2. 論文テキストを追加
+            final_content.append({
+                "type": "input_text",
+                "text": text,
+            })
+
+            # 3. プロンプトを追加
+            final_content.append({
+                "type": "input_text",
+                "text": prompt,
+            })
+
+            messages = [{
+                "role": "user",
+                "content": final_content
+            }]
+
+            response = client.responses.create(
+                model=MODEL,
+                input=messages,
+                temperature=0.0,
+            )
