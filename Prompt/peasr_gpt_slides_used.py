@@ -10,6 +10,12 @@ MODEL = "gpt-4.1-mini-2025-04-14" # which model is supposed to be in use
 
 client = OpenAI(api_key=API_KEY)
 
+# -----------------------------
+# 画像エンコード（Base64方式）
+# -----------------------------
+def encode_image(image_path: str) -> str:
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 with open(CSV_PATH, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
@@ -37,3 +43,61 @@ for i, row in enumerate(rows):
               print(f"❌ Failed image {slide_image}: {e}")
   else:
       print(f"⚠ Image directory not found: {slide_image}")
+
+  try:
+        prompt = (f"""
+            You are performing post-editing for an ASR transcript of an academic presentation.
+        
+            You are also given the corresponding presentation slide.
+                      
+            Your task is ONLY to correct clear ASR recognition errors.
+        
+            IMPORTANT RULES:
+        
+            - Preserve the original wording and phrasing whenever possible.
+            - Do NOT paraphrase, rewrite, summarize, or improve fluency.
+            - Do NOT replace sentences with slide text.
+            - The spoken presentation may differ from the slide.
+            - Prefer the ASR transcript whenever both versions are plausible.
+            - Only make minimal local edits for obvious ASR mistakes.
+            - Do not introduce new content not present in the ASR transcript.
+            - If the transcript is already plausible, keep it unchanged.
+        
+            Return ONLY the post-edited ASR transcript.
+        
+            ASR transcript:
+            {english_text}
+            """
+            )
+        
+            final_content = []
+            
+            # 1. 画像を1つ追加
+            if encoded_images_list: #もしリストが空でなければ
+                for b64 in encoded_images_list:
+                    final_content.append({
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{b64}",
+                    })
+                    print(f"Using slide: {slide_image}")
+            
+            else: #もしリストが空であれば
+                print(f"⚠ Using slide: No Slides")
+
+
+            # 2. プロンプトを追加
+            final_content.append({
+                "type": "input_text",
+                "text": prompt,
+            })
+
+            messages = [{
+                "role": "user",
+                "content": final_content
+            }]
+
+            response = client.responses.create(
+                model=MODEL,
+                input=messages,
+                temperature=0.0,
+            )
